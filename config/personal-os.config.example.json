@@ -78,6 +78,7 @@
   },
   "ai": {
     "enabled": false,
-    "model": "gpt-5.5"
+    "model": "gpt-5.6",
+    "timeoutMs": 12000
   }
 }
