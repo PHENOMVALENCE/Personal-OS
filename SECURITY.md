@@ -14,7 +14,7 @@ Generated output combines project information and personal obligations. Keep it 
 
 ## External processing
 
-AI is disabled by default. With opt-in plus `OPENAI_API_KEY`, selected project objects, executive summary and urgent actions are sent to the configured API endpoint in `src/core/llm.js`. This can expose paths, TODO excerpts, commit subjects, names and obligations. There is no redaction layer or granular field consent. Offline tests never invoke the API. Review the payload and applicable service terms yourself before enabling it.
+AI is disabled by default. With opt-in plus `OPENAI_API_KEY`, the executive summary, urgent actions, and reduced summaries for up to five projects are sent to the configured API endpoint in `src/core/llm.js`. The reduced project payload omits full file inventories and absolute project paths, but it can still expose project names, branch names, recent commit subjects, inferred work signals, names, and obligations. Requests use a bounded timeout. There is still no configurable redaction layer or granular field consent. Offline tests never invoke the API. Review the payload and applicable service terms yourself before enabling it.
 
 ## Current boundaries
 
