@@ -1,9 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { truncate, unique } from "./utils.js";
+import { unique } from "./utils.js";
+import { collectProgress } from "./progress.js";
 
-const TODO_PATTERN = /\b(TODO|FIXME|HACK|XXX)\b/i;
+
 
 export function scanProjects(config, previousSnapshot, now = new Date(), isBaselineScan = false) {
   const rootEntries = fs.readdirSync(config.workspaceRoot, { withFileTypes: true });
@@ -15,26 +16,34 @@ export function scanProjects(config, previousSnapshot, now = new Date(), isBasel
 
   return projectNames.map((projectName) => {
     const projectPath = path.join(config.workspaceRoot, projectName);
-    const previousProject = previousSnapshot?.projects?.find((project) => project.name === projectName);
-    const fileInventory = collectFileInventory(projectPath, config);
-    const changes = compareFileInventory(previousProject?.fileInventory || {}, fileInventory, isBaselineScan);
+    const previousProject = previousSnapshot?.projects?.find((project) => path.resolve(project.path) === path.resolve(projectPath));
+    const warnings = [];
+    const fileInventory = collectFileInventory(projectPath, config, warnings);
+    // An incomplete traversal must not report unreadable files as deleted.
+    if (warnings.length) {
+      for (const [file, stat] of Object.entries(previousProject?.fileInventory || {})) {
+        if (!(file in fileInventory)) fileInventory[file] = stat;
+      }
+    }
+    const projectBaseline = isBaselineScan || !previousProject;
+    const changes = compareFileInventory(previousProject?.fileInventory || {}, fileInventory, projectBaseline);
     const git = collectGitActivity(projectPath, previousSnapshot?.generatedAt);
     const categories = classifyChanges(changes);
-    const todos = collectTodoItems(
-      projectPath,
-      isBaselineScan ? [] : [...changes.created, ...changes.modified],
-      config.textExtensions,
-      config.maxTodoItemsPerProject
-    );
+    const progress = collectProgress(projectPath, fileInventory, previousProject, changes, config, now, warnings);
+    const todos = progress.todos;
     const inferredFeatures = inferFeatures(changes, git, categories);
     const inferredFixes = inferFixes(changes, git, categories);
     const pendingWork = inferPendingWork(changes, git, todos);
+    if (progress.openTasks.length) pendingWork.unshift(`${progress.openTasks.length} unchecked documented task(s).`);
+    if (warnings.length) pendingWork.unshift("Partial scan: review unreadable paths before drawing conclusions.");
 
     return {
       name: projectName,
       path: projectPath,
       scannedAt: now.toISOString(),
-      isBaselineScan,
+      isBaselineScan: projectBaseline,
+      warnings,
+      progress,
       fileInventory,
       fileCounts: {
         total: Object.keys(fileInventory).length,
@@ -54,14 +63,14 @@ export function scanProjects(config, previousSnapshot, now = new Date(), isBasel
   });
 }
 
-function collectFileInventory(projectPath, config) {
+function collectFileInventory(projectPath, config, warnings) {
   const inventory = {};
-  walkDirectory(projectPath, projectPath, config, inventory);
+  walkDirectory(projectPath, projectPath, config, inventory, warnings);
   return inventory;
 }
 
-function walkDirectory(currentPath, projectPath, config, inventory) {
-  const entries = safeReadDir(currentPath).sort((left, right) => left.name.localeCompare(right.name));
+function walkDirectory(currentPath, projectPath, config, inventory, warnings) {
+  const entries = safeReadDir(currentPath, warnings).sort((left, right) => left.name.localeCompare(right.name));
 
   for (const entry of entries) {
     const fullPath = path.join(currentPath, entry.name);
@@ -77,7 +86,7 @@ function walkDirectory(currentPath, projectPath, config, inventory) {
         continue;
       }
 
-      walkDirectory(fullPath, projectPath, config, inventory);
+      walkDirectory(fullPath, projectPath, config, inventory, warnings);
       continue;
     }
 
@@ -96,16 +105,18 @@ function walkDirectory(currentPath, projectPath, config, inventory) {
         size: stat.size,
         mtimeMs: stat.mtimeMs
       };
-    } catch {
+    } catch (error) {
+      warnings.push(`Cannot inspect ${normalizedRelativePath}: ${error.code || error.message}`);
       continue;
     }
   }
 }
 
-function safeReadDir(directoryPath) {
+function safeReadDir(directoryPath, warnings) {
   try {
     return fs.readdirSync(directoryPath, { withFileTypes: true });
-  } catch {
+  } catch (error) {
+    warnings.push(`Cannot list ${directoryPath}: ${error.code || error.message}`);
     return [];
   }
 }
@@ -288,44 +299,6 @@ function pickBucket(filePath) {
   if (/\.(css|scss|sass|less|vue|jsx|tsx|blade\.php|html)$/.test(filePath) || /(^|\/)(resources\/views|frontend|client|ui|components)\//.test(filePath)) return "frontend";
   if (/\.(php|js|ts|py|java)$/.test(filePath) || /(^|\/)(app|src|server|backend|controllers|services)\//.test(filePath)) return "backend";
   return "other";
-}
-
-function collectTodoItems(projectPath, candidateFiles, textExtensions, maxTodoItems) {
-  const items = [];
-
-  for (const relativePath of candidateFiles.filter((filePath) => isTextFile(filePath, textExtensions))) {
-    if (items.length >= maxTodoItems) {
-      break;
-    }
-
-    const fullPath = path.join(projectPath, relativePath);
-    try {
-      const content = fs.readFileSync(fullPath, "utf8");
-      const lines = content.split(/\r?\n/);
-      lines.forEach((line, index) => {
-        if (items.length >= maxTodoItems) {
-          return;
-        }
-
-        if (TODO_PATTERN.test(line)) {
-          items.push({
-            file: relativePath,
-            line: index + 1,
-            text: truncate(line.trim(), 160)
-          });
-        }
-      });
-    } catch {
-      continue;
-    }
-  }
-
-  return items;
-}
-
-function isTextFile(filePath, textExtensions) {
-  const normalized = filePath.toLowerCase();
-  return textExtensions.some((extension) => normalized.endsWith(extension));
 }
 
 function inferFeatures(changes, git, categories) {

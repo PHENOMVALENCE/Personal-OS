@@ -87,6 +87,10 @@ function validateConfig(config, configPath) {
       throw new Error('Configuration field "ai.timeoutMs" must be an integer between 1000 and 120000 milliseconds.');
     }
   }
+  if (config.progress?.maxTextFileBytes !== undefined &&
+      (!Number.isInteger(config.progress.maxTextFileBytes) || config.progress.maxTextFileBytes < 1024 || config.progress.maxTextFileBytes > 10485760)) {
+    throw new Error('Configuration field "progress.maxTextFileBytes" must be an integer between 1024 and 10485760.');
+  }
 }
 
 function validateWorkspace(workspaceRoot) {
