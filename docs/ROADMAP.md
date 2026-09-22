@@ -1,6 +1,15 @@
 # Roadmap and current limitations
 
-This is a direction for future work, not a claim that the features below exist.
+This roadmap distinguishes newly delivered operational-intelligence work from capabilities that are still planned.
+
+## Delivered in the 0.2 groundwork
+
+- Cross-domain operational action engine with deterministic priority ordering.
+- Project-health snapshots for active, steady, baseline, and attention states.
+- Waiting-on communication queue.
+- Restructured executive, morning, and end-of-day reports.
+- Responsive local command-center dashboard with action filtering, project health, daily timeline, deadlines, and waiting-on visibility.
+- Focused tests for action prioritization and command-center generation.
 
 ## Reliability
 
