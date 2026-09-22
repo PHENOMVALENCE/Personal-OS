@@ -47,7 +47,7 @@ export async function writeEndOfDayReview(config, scanResult) {
 async function buildThreeHourReport(config, scanResult) {
   const aiSummary = await maybeGenerateAiSummary(config, {
     executiveSummary: scanResult.executiveSummary,
-    keyProjects: scanResult.projects.slice(0, 5),
+    keyProjects: scanResult.projects.slice(0, 5).map(toAiProjectSummary),
     urgentActions: scanResult.highPriorityActions
   });
 
@@ -96,6 +96,25 @@ ${scanResult.recommendations.map((item) => `- ${item}`).join("\n") || "- No sugg
 
 ${projectSections}
 `;
+}
+
+function toAiProjectSummary(project) {
+  return {
+    name: project.name,
+    fileCounts: project.fileCounts,
+    changedAreas: Object.entries(project.categories)
+      .filter(([, files]) => files.length > 0)
+      .map(([area]) => area),
+    git: {
+      branch: project.git.branch,
+      uncommittedChanges: project.git.status.length,
+      recentCommits: project.git.commitsSinceLastScan.slice(0, 5).map((commit) => commit.subject)
+    },
+    todoCount: project.todos.length,
+    featureSignals: project.inferredFeatures.slice(0, 3),
+    fixSignals: project.inferredFixes.slice(0, 3),
+    pendingWork: project.pendingWork.slice(0, 3)
+  };
 }
 
 function buildMorningBriefing(scanResult) {
