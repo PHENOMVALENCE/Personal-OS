@@ -1,4 +1,5 @@
 import { formatDateTime } from "./utils.js";
+import { progressSummary } from "./progress-report.js";
 
 export function buildDashboard(scanResult) {
   const intelligence = scanResult.operationalIntelligence || {
@@ -555,7 +556,7 @@ export function buildDashboard(scanResult) {
           </div>
           <div class="panel-body">
             <div class="project-grid">
-              ${projectHealth.length ? projectHealth.map(projectCard).join("") : '<div class="empty">No tracked projects found.</div>'}
+              ${projectHealth.length ? projectHealth.map((health) => projectCard(health, scanResult.projects.find((project) => project.name === health.name)?.progress)).join("") : '<div class="empty">No tracked projects found.</div>'}
             </div>
           </div>
         </section>
@@ -679,13 +680,14 @@ function eventCard(event) {
     </div>`;
 }
 
-function projectCard(project) {
+function projectCard(project, progress) {
   const signals = project.signals.length
     ? `<ul class="signals">${project.signals.slice(0, 4).map((signal) => `<li>${escapeHtml(signal)}</li>`).join("")}</ul>`
     : '<ul class="signals"><li>No major risk signals</li></ul>';
 
   return `
     <article class="project">
+      ${progress ? `<p>${escapeHtml(progressSummary(progress))}</p><p>Latest scan: ${progress.delta.completed.length} checked off · ${progress.delta.reopened.length} reopened</p><details><summary>Folder activity and outstanding tasks</summary><ul>${progress.folders.filter((folder) => folder.created + folder.modified + folder.deleted).slice(0, 10).map((folder) => `<li>${escapeHtml(folder.folder)}: +${folder.created} / ~${folder.modified} / -${folder.deleted}</li>`).join("") || "<li>No folder changes this scan</li>"}${progress.openTasks.slice(0, 8).map((task) => `<li>${escapeHtml(task.title)} — ${escapeHtml(task.file)}:${task.line}</li>`).join("")}</ul><p>Checklist percentage reflects documented checkboxes only.</p></details>` : ""}
       <div class="project-top">
         <div class="project-name" title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</div>
         <span class="status-chip ${escapeHtml(project.status)}">${escapeHtml(project.status)}</span>

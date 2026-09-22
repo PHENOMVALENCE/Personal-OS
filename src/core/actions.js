@@ -170,11 +170,11 @@ function buildProjectActions(projects, isBaselineScan) {
         createAction({
           id: `project-todos-${slugify(project.name)}`,
           title: `Review ${project.name} TODO markers`,
-          detail: `${project.todos.length} TODO/FIXME marker(s) detected in changed files`,
+          detail: `${project.progress?.todoCount ?? project.todos.length} TODO/FIXME marker(s) retained across scanned files`,
           priority: "medium",
           domain: "projects",
           project: project.name,
-          reason: "Changed files contain explicit unfinished-work markers.",
+          reason: "Scanned files contain explicit unfinished-work markers.",
           nextAction: "Resolve or convert important markers into tracked work."
         })
       );
@@ -188,7 +188,7 @@ function buildProjectHealth(project, isBaselineScan, now) {
   const changeCount = project.fileCounts.created + project.fileCounts.modified + project.fileCounts.deleted;
   const signals = [];
   const uncommitted = project.git.status.length;
-  const todoCount = project.todos.length;
+  const todoCount = project.progress?.todoCount ?? project.todos.length;
   const lastCommitAt = project.git.lastCommit?.timestamp ? new Date(project.git.lastCommit.timestamp) : null;
   const daysSinceCommit = lastCommitAt && !Number.isNaN(lastCommitAt.getTime())
     ? Math.floor((now.getTime() - lastCommitAt.getTime()) / 86400000)
@@ -198,6 +198,8 @@ function buildProjectHealth(project, isBaselineScan, now) {
   else if (uncommitted > 0) signals.push(`${uncommitted} uncommitted change(s)`);
 
   if (todoCount > 0) signals.push(`${todoCount} TODO/FIXME marker(s)`);
+  if (project.progress?.openTasks.length) signals.push(`${project.progress.openTasks.length} unchecked documented task(s)`);
+  if (project.progress && !project.progress.complete) signals.push("partial text coverage; inspect scan details");
   if (project.changes.renamedCandidates.length > 0) signals.push("potential rename(s) need verification");
   if (daysSinceCommit !== null && daysSinceCommit >= 7) signals.push(`last commit ${daysSinceCommit} day(s) ago`);
 

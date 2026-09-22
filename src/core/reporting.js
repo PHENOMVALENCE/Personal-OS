@@ -1,6 +1,7 @@
 import path from "node:path";
 import { maybeGenerateAiSummary } from "./llm.js";
 import { buildDashboard } from "./dashboard.js";
+import { buildProgressReport } from "./progress-report.js";
 import { ensureDir, formatDateTime, writeJson, writeText } from "./utils.js";
 
 export async function persistScanArtifacts(config, scanResult) {
@@ -38,7 +39,7 @@ export async function writeMorningBriefing(config, scanResult) {
 
 export async function writeEndOfDayReview(config, scanResult) {
   const stamp = scanResult.generatedAt.replaceAll(":", "-");
-  const content = buildEndOfDayReview(scanResult);
+  const content = buildEndOfDayReview(scanResult) + "\n\n## Folder and Checklist Progress\n\n" + buildProgressReport(scanResult.projects, scanResult.generatedAt);
   const reportPath = path.join(config.reportsDir, `end-of-day-${stamp}.md`);
   writeText(reportPath, content);
   writeText(path.join(config.reportsDir, "latest-end-of-day.md"), content);
@@ -125,6 +126,10 @@ ${scanResult.recommendations.map((item) => `- ${item}`).join("\n") || "- No reco
 ## Project Detail
 
 ${projectSections}
+
+## Folder and Checklist Progress
+
+${buildProgressReport(scanResult.projects, scanResult.generatedAt)}
 `;
 }
 
