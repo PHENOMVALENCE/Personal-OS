@@ -4,14 +4,14 @@ import { execFileSync } from "node:child_process";
 import { truncate, unique } from "./utils.js";
 
 const TODO_PATTERN = /\b(TODO|FIXME|HACK|XXX)\b/i;
-const TEXT_FILE_PATTERN = /\.(php|js|mjs|cjs|ts|tsx|jsx|json|md|txt|sql|css|scss|html|vue|py|java|xml|ya?ml)$/i;
 
 export function scanProjects(config, previousSnapshot, now = new Date(), isBaselineScan = false) {
   const rootEntries = fs.readdirSync(config.workspaceRoot, { withFileTypes: true });
   const projectNames = rootEntries
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
-    .filter((name) => !config.excludeProjects.includes(name));
+    .filter((name) => !config.excludeProjects.includes(name))
+    .sort((left, right) => left.localeCompare(right));
 
   return projectNames.map((projectName) => {
     const projectPath = path.join(config.workspaceRoot, projectName);
@@ -23,6 +23,7 @@ export function scanProjects(config, previousSnapshot, now = new Date(), isBasel
     const todos = collectTodoItems(
       projectPath,
       isBaselineScan ? [] : [...changes.created, ...changes.modified],
+      config.textExtensions,
       config.maxTodoItemsPerProject
     );
     const inferredFeatures = inferFeatures(changes, git, categories);
@@ -60,12 +61,16 @@ function collectFileInventory(projectPath, config) {
 }
 
 function walkDirectory(currentPath, projectPath, config, inventory) {
-  const entries = safeReadDir(currentPath);
+  const entries = safeReadDir(currentPath).sort((left, right) => left.name.localeCompare(right.name));
 
   for (const entry of entries) {
     const fullPath = path.join(currentPath, entry.name);
     const relativePath = path.relative(projectPath, fullPath);
-    const normalizedRelativePath = relativePath.split(path.sep).join("/");
+    const normalizedRelativePath = normalizeRelativePath(relativePath);
+
+    if (entry.isSymbolicLink()) {
+      continue;
+    }
 
     if (entry.isDirectory()) {
       if (shouldIgnoreDirectory(entry.name, normalizedRelativePath, config.ignoredDirectories)) {
@@ -73,6 +78,10 @@ function walkDirectory(currentPath, projectPath, config, inventory) {
       }
 
       walkDirectory(fullPath, projectPath, config, inventory);
+      continue;
+    }
+
+    if (!entry.isFile()) {
       continue;
     }
 
@@ -87,7 +96,7 @@ function walkDirectory(currentPath, projectPath, config, inventory) {
         size: stat.size,
         mtimeMs: stat.mtimeMs
       };
-    } catch (error) {
+    } catch {
       continue;
     }
   }
@@ -96,18 +105,29 @@ function walkDirectory(currentPath, projectPath, config, inventory) {
 function safeReadDir(directoryPath) {
   try {
     return fs.readdirSync(directoryPath, { withFileTypes: true });
-  } catch (error) {
+  } catch {
     return [];
   }
 }
 
+function normalizeRelativePath(value) {
+  return value.split(path.sep).join("/").replace(/^\.\//, "");
+}
+
 function shouldIgnoreDirectory(entryName, relativePath, ignoredDirectories) {
-  const normalized = relativePath.split(path.sep).join("/").toLowerCase();
+  const normalizedPath = normalizeRelativePath(relativePath).toLowerCase();
   const normalizedName = entryName.toLowerCase();
 
   return ignoredDirectories.some((candidate) => {
-    const normalizedCandidate = candidate.replaceAll("\\", "/").toLowerCase();
-    return normalizedName === normalizedCandidate || normalized.startsWith(`${normalizedCandidate}/`);
+    const normalizedCandidate = String(candidate).replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/$/, "").toLowerCase();
+    if (!normalizedCandidate) return false;
+
+    const isPathRule = normalizedCandidate.includes("/");
+    if (!isPathRule && normalizedName === normalizedCandidate) {
+      return true;
+    }
+
+    return normalizedPath === normalizedCandidate || normalizedPath.startsWith(`${normalizedCandidate}/`);
   });
 }
 
@@ -147,6 +167,10 @@ function compareFileInventory(previousInventory, currentInventory, isBaselineSca
       deleted.push(filePath);
     }
   }
+
+  created.sort();
+  modified.sort();
+  deleted.sort();
 
   const renamedCandidates = detectPotentialRenames(created, deleted);
 
@@ -207,7 +231,7 @@ function runGit(projectPath, args) {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"]
     }).trim();
-  } catch (error) {
+  } catch {
     return "";
   }
 }
@@ -266,10 +290,10 @@ function pickBucket(filePath) {
   return "other";
 }
 
-function collectTodoItems(projectPath, candidateFiles, maxTodoItems) {
+function collectTodoItems(projectPath, candidateFiles, textExtensions, maxTodoItems) {
   const items = [];
 
-  for (const relativePath of candidateFiles.filter((filePath) => TEXT_FILE_PATTERN.test(filePath))) {
+  for (const relativePath of candidateFiles.filter((filePath) => isTextFile(filePath, textExtensions))) {
     if (items.length >= maxTodoItems) {
       break;
     }
@@ -291,12 +315,17 @@ function collectTodoItems(projectPath, candidateFiles, maxTodoItems) {
           });
         }
       });
-    } catch (error) {
+    } catch {
       continue;
     }
   }
 
   return items;
+}
+
+function isTextFile(filePath, textExtensions) {
+  const normalized = filePath.toLowerCase();
+  return textExtensions.some((extension) => normalized.endsWith(extension));
 }
 
 function inferFeatures(changes, git, categories) {
