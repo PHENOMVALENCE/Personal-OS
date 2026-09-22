@@ -1,0 +1,15 @@
+{
+  "name": "personal-os",
+  "version": "0.1.0",
+  "description": "Personal operating system for monitoring projects, schedule, responsibilities, and follow-ups.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "scan": "node src/cli.js scan",
+    "briefing:morning": "node src/cli.js morning",
+    "briefing:eod": "node src/cli.js eod",
+    "dashboard": "node src/cli.js dashboard",
+    "report:all": "node src/cli.js scan --with-briefings"
+  }
+}
+

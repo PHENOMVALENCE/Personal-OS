@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+config/personal-os.config.json
+data/inputs/
+data/state/
+data/history/
+reports/
+dashboard/
+*.log
+.DS_Store
+Thumbs.db

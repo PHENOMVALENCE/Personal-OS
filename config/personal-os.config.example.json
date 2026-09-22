@@ -1,0 +1,83 @@
+{
+  "workspaceRoot": "C:\\Projects",
+  "stateDir": "./data/state",
+  "historyDir": "./data/history",
+  "reportsDir": "./reports",
+  "dashboardDir": "./dashboard",
+  "maxTodoItemsPerProject": 12,
+  "scanWindowHours": 3,
+  "excludeProjects": [
+    "img",
+    "xampp",
+    "webalizer"
+  ],
+  "ignoredDirectories": [
+    ".git",
+    "node_modules",
+    "vendor",
+    "dist",
+    "build",
+    "coverage",
+    ".next",
+    ".nuxt",
+    "storage",
+    "bootstrap\\cache",
+    "tmp",
+    "temp"
+  ],
+  "ignoredExtensions": [
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".svg",
+    ".ico",
+    ".mp4",
+    ".mp3",
+    ".zip",
+    ".rar",
+    ".7z",
+    ".pdf",
+    ".ttf",
+    ".woff",
+    ".woff2"
+  ],
+  "textExtensions": [
+    ".php",
+    ".js",
+    ".mjs",
+    ".cjs",
+    ".ts",
+    ".tsx",
+    ".jsx",
+    ".json",
+    ".md",
+    ".txt",
+    ".env",
+    ".sql",
+    ".css",
+    ".scss",
+    ".html",
+    ".blade.php",
+    ".vue",
+    ".py",
+    ".java",
+    ".xml",
+    ".yml",
+    ".yaml"
+  ],
+  "schedule": {
+    "morningBriefingTime": "07:00",
+    "endOfDayReviewTime": "21:00"
+  },
+  "automation": {
+    "notificationsEnabled": false,
+    "autoOpenDashboard": false,
+    "autoOpenReports": false
+  },
+  "ai": {
+    "enabled": false,
+    "model": "gpt-5.5"
+  }
+}
