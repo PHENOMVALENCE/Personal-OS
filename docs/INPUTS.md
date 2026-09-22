@@ -24,7 +24,9 @@ Past-due items are overdue unless `status` is `done`. Due-soon items fall within
 {"conversations":[{"contact":"Example collaborator","channel":"email","topic":"Planning notes","commitment":"Send draft agenda","last_message_at":"2030-01-14T12:00:00+03:00","awaiting_response_from":"me","needs_follow_up":true,"priority":"medium"}]}
 ```
 
-An entry is pending when `awaiting_response_from` is `me` OR `needs_follow_up` is true. To close it, update both conditions. Entries sort by priority and age; the high-priority shortlist is capped at eight. This is a manually maintained record, not an inbox connection, and the app does not send messages.
+An entry is pending when `awaiting_response_from` is `me` OR `needs_follow_up` is true. To close it, update both conditions. Entries sort by priority and age; the high-priority shortlist is capped at eight.
+
+When `awaiting_response_from` contains another person or party instead of `me`, the conversation is also surfaced in the **Waiting On** queue. This separates work you must perform from work that is blocked on an external response. This is a manually maintained record, not an inbox connection, and the app does not send messages.
 
 ## Responsibilities: responsibilities.json
 

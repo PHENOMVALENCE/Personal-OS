@@ -1,4 +1,5 @@
 import path from "node:path";
+import { buildOperationalIntelligence } from "./actions.js";
 import { getRootDir } from "./config.js";
 import { loadDomainState } from "./domains.js";
 import { scanProjects } from "./projects.js";
@@ -12,7 +13,8 @@ export function runScan(config) {
   const projects = scanProjects(config, previousSnapshot, new Date(generatedAt), isBaselineScan);
   const crossDomain = loadDomainState(rootDir);
   const executiveSummary = buildExecutiveSummary(projects, crossDomain, isBaselineScan);
-  const highPriorityActions = buildHighPriorityActions(projects, crossDomain, isBaselineScan);
+  const operationalIntelligence = buildOperationalIntelligence(projects, crossDomain, isBaselineScan, new Date(generatedAt));
+  const highPriorityActions = operationalIntelligence.topActions.map(formatAction);
   const recommendations = buildRecommendations(projects, crossDomain, isBaselineScan);
 
   return {
@@ -22,6 +24,7 @@ export function runScan(config) {
     projects,
     crossDomain,
     executiveSummary,
+    operationalIntelligence,
     highPriorityActions,
     recommendations
   };
@@ -59,32 +62,9 @@ function buildExecutiveSummary(projects, crossDomain, isBaselineScan) {
   };
 }
 
-function buildHighPriorityActions(projects, crossDomain, isBaselineScan) {
-  const actions = [];
-
-  for (const project of projects) {
-    if (!isBaselineScan && project.pendingWork.length > 0) {
-      actions.push(`Review ${project.name}: ${project.pendingWork[0]}`);
-    }
-  }
-
-  for (const item of crossDomain.academics.overdue) {
-    actions.push(`Academic catch-up: ${item.title} for ${item.course} is overdue.`);
-  }
-
-  for (const item of crossDomain.responsibilities.overdue) {
-    actions.push(`Responsibility overdue: ${item.title} in ${item.area}.`);
-  }
-
-  for (const conversation of crossDomain.communications.highPriority) {
-    actions.push(`Reply to ${conversation.contact} on ${conversation.channel}: ${conversation.commitment || conversation.topic}.`);
-  }
-
-  for (const conflict of crossDomain.schedule.conflicts) {
-    actions.push(`Resolve schedule conflict: ${conflict}.`);
-  }
-
-  return actions.slice(0, 15);
+function formatAction(action) {
+  const detail = action.detail ? `: ${action.detail}` : "";
+  return `[${action.priority.toUpperCase()}] ${action.title}${detail}`;
 }
 
 function buildRecommendations(projects, crossDomain, isBaselineScan) {
@@ -104,7 +84,7 @@ function buildRecommendations(projects, crossDomain, isBaselineScan) {
   }
 
   if (crossDomain.communications.highPriority.length > 0) {
-    recommendations.push(`Close at least one high-priority communication loop before the next scan window.`);
+    recommendations.push("Close at least one high-priority communication loop before the next scan window.");
   }
 
   if (crossDomain.responsibilities.upcoming.length > 0) {

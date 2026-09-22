@@ -114,8 +114,17 @@ function summarizeCommunications(conversations) {
     }))
     .sort((left, right) => scorePriority(right.priority) - scorePriority(left.priority) || right.ageHours - left.ageHours);
 
+  const waitingOn = conversations
+    .filter((conversation) => conversation.awaiting_response_from && conversation.awaiting_response_from !== "me")
+    .map((conversation) => ({
+      ...conversation,
+      ageHours: Math.round((now.getTime() - new Date(conversation.last_message_at).getTime()) / 36e5)
+    }))
+    .sort((left, right) => right.ageHours - left.ageHours);
+
   return {
     pending,
+    waitingOn,
     highPriority: pending.filter((conversation) => conversation.priority === "high").slice(0, 8)
   };
 }

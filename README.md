@@ -37,15 +37,24 @@ The result is one recurring operating picture rather than several disconnected c
 - Summarize today's schedule and detect direct overlaps.
 - Track academic deadlines and overdue work.
 - Surface pending and high-priority communication follow-ups.
+- Separate items that need your reply from items you are waiting on from someone else.
 - Track responsibility areas, upcoming work, and overdue commitments.
 - Track upcoming bills and financial goals.
 - Include longer-term goals in the dashboard and reports.
 
+### Operational intelligence
+
+- Build a normalized priority queue across schedule conflicts, academics, responsibilities, communications, and software projects.
+- Classify actions as critical, high, medium, or low priority using deterministic rules.
+- Attach the reason and suggested next action to each generated action.
+- Build per-project health snapshots from recent movement, working-tree pressure, TODO/FIXME markers, rename signals, and commit recency.
+- Surface projects that are active, steady, baseline-only, or need attention.
+
 ### Reporting and automation
 
-- Generate a three-hour executive report.
-- Generate morning and end-of-day briefings.
-- Generate a static local HTML dashboard plus JSON snapshot.
+- Generate a structured executive report with an at-a-glance view, priority queue, project health table, deadlines, waiting-on queue, and detailed project notes.
+- Generate action-oriented morning and end-of-day briefings.
+- Generate an interactive local command-center dashboard with priority filtering, project-health cards, a daily timeline, deadlines, and waiting-on visibility.
 - Store timestamped scan history for later inspection.
 - Register recurring Windows Task Scheduler jobs.
 - Optionally show desktop notifications and open generated output.
@@ -66,10 +75,11 @@ flowchart LR
   B --> D[Read personal JSON inputs]
   C --> E[Scan projects + local Git]
   D --> F[Build cross-domain state]
-  E --> G[Executive summary + priorities]
+  E --> G[Operational intelligence engine]
   F --> G
-  G --> H[Markdown reports]
-  G --> I[Static dashboard + JSON]
+  G --> H[Executive summary + action queue]
+  H --> I[Markdown reports]
+  H --> K[Interactive static command center + JSON]
   G -. optional reduced payload .-> J[AI summary]
   J -. fallback on failure .-> H
 ```
@@ -81,9 +91,11 @@ Core runtime modules:
 | `src/cli.js` | Command dispatch and user-facing CLI output |
 | `src/core/config.js` | Configuration loading, validation, and path normalization |
 | `src/core/projects.js` | Project traversal, Git inspection, change classification, TODO signals |
-| `src/core/domains.js` | Schedule, academics, communications, responsibilities, finance, goals |
-| `src/core/system.js` | Executive metrics, actions, and deterministic recommendations |
-| `src/core/reporting.js` | Snapshots, reports, dashboard, reduced AI payload |
+| `src/core/domains.js` | Schedule, academics, communications, waiting-on state, responsibilities, finance, goals |
+| `src/core/actions.js` | Cross-domain priority queue and project-health intelligence |
+| `src/core/system.js` | Scan orchestration, executive metrics, and deterministic recommendations |
+| `src/core/reporting.js` | Snapshot persistence and structured Markdown reports |
+| `src/core/dashboard.js` | Interactive local command-center dashboard renderer |
 | `src/core/llm.js` | Optional bounded external summary request |
 
 ## Quick start

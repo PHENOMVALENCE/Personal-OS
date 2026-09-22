@@ -32,6 +32,8 @@ test("fresh setup preserves local data and CLI detects real changes", () => {
     run("src/cli.js", "scan");
     assert.equal(snapshot().isBaselineScan, true);
     assert.equal(snapshot().projects[0].fileCounts.created, 0);
+    assert.ok(snapshot().operationalIntelligence);
+    assert.equal(snapshot().operationalIntelligence.projectHealth[0].status, "baseline");
     assert.equal(snapshot().projects[0].fileInventory["bootstrap/cache/ignored.js"], undefined);
     fs.writeFileSync(path.join(project, "app.js"), "export const value = 222; // TODO: example\n");
     fs.writeFileSync(path.join(project, "new.md"), "TODO: this markdown file is intentionally excluded from TODO scanning");
@@ -39,13 +41,18 @@ test("fresh setup preserves local data and CLI detects real changes", () => {
     assert.equal(snapshot().projects[0].fileCounts.modified, 1);
     assert.equal(snapshot().projects[0].fileCounts.created, 1);
     assert.equal(snapshot().projects[0].todos.length, 1);
+    assert.ok(snapshot().operationalIntelligence.actions.some((action) => action.domain === "projects"));
     fs.unlinkSync(path.join(project, "new.md"));
     run("src/cli.js", "morning");
     assert.equal(snapshot().projects[0].fileCounts.deleted, 1);
     run("src/cli.js", "eod");
     run("src/cli.js", "dashboard");
     for (const file of ["latest-three-hour.md", "latest-morning-briefing.md", "latest-end-of-day.md"]) assert.ok(fs.readFileSync(path.join(root, "reports", file), "utf8").includes("Generated:"));
-    assert.ok(fs.readFileSync(path.join(root, "dashboard/index.html"), "utf8").includes("demo"));
+    const dashboard = fs.readFileSync(path.join(root, "dashboard/index.html"), "utf8");
+    assert.ok(dashboard.includes("demo"));
+    assert.ok(dashboard.includes("Command Center"));
+    assert.ok(dashboard.includes("Project health"));
+    assert.ok(fs.readFileSync(path.join(root, "reports/latest-three-hour.md"), "utf8").includes("Priority Queue"));
     assert.equal(spawnSync(process.execPath, ["src/cli.js", "invalid"], { cwd: root }).status, 1);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

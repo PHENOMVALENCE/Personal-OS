@@ -1,5 +1,6 @@
 import path from "node:path";
 import { maybeGenerateAiSummary } from "./llm.js";
+import { buildDashboard } from "./dashboard.js";
 import { ensureDir, formatDateTime, writeJson, writeText } from "./utils.js";
 
 export async function persistScanArtifacts(config, scanResult) {
@@ -45,54 +46,83 @@ export async function writeEndOfDayReview(config, scanResult) {
 }
 
 async function buildThreeHourReport(config, scanResult) {
+  const intelligence = scanResult.operationalIntelligence;
   const aiSummary = await maybeGenerateAiSummary(config, {
     executiveSummary: scanResult.executiveSummary,
     keyProjects: scanResult.projects.slice(0, 5).map(toAiProjectSummary),
-    urgentActions: scanResult.highPriorityActions
+    urgentActions: intelligence.topActions.slice(0, 8)
   });
 
   const projectSections = scanResult.projects
-    .map(
-      (project) => `## ${project.name}
+    .map((project) => {
+      const health = intelligence.projectHealth.find((item) => item.name === project.name);
+      return `### ${project.name}
 
-- Work completed: ${project.progressReport}
-- Files changed: ${
-        project.isBaselineScan
-          ? `Baseline only (${project.fileCounts.total} tracked file(s))`
-          : `${project.fileCounts.created} created, ${project.fileCounts.modified} modified, ${project.fileCounts.deleted} deleted`
-      }
-- New features added: ${project.inferredFeatures.length > 0 ? project.inferredFeatures.join(" | ") : "No clear feature signal detected"}
-- Bugs fixed: ${project.inferredFixes.length > 0 ? project.inferredFixes.join(" | ") : "No clear bug-fix signal detected"}
-- Pending tasks: ${project.pendingWork.length > 0 ? project.pendingWork.join(" | ") : "No major pending flags from this scan"}
-- TODO items: ${project.todos.length > 0 ? project.todos.map((todo) => `${todo.file}:${todo.line}`).join(", ") : "None detected"}`
-    )
+- **Status:** ${health?.status || "unknown"}
+- **Branch:** ${project.git.branch || "n/a"}
+- **Movement:** ${project.isBaselineScan ? `baseline of ${project.fileCounts.total} tracked file(s)` : `${project.fileCounts.created} created · ${project.fileCounts.modified} modified · ${project.fileCounts.deleted} deleted`}
+- **Recent commits:** ${project.git.commitsSinceLastScan.length}
+- **Uncommitted changes:** ${project.git.status.length}
+- **TODO/FIXME markers:** ${project.todos.length}
+- **Progress:** ${project.progressReport}
+- **Attention:** ${health?.signals?.length ? health.signals.join(" · ") : "No major project-health signals"}`;
+    })
     .join("\n\n");
 
-  return `# 3-Hour Executive Report
+  return `# Personal OS — Executive Report
 
-Generated: ${formatDateTime(scanResult.generatedAt)}
+**Generated:** ${formatDateTime(scanResult.generatedAt)}  
+**Window:** ${scanResult.monitorWindowHours} hour(s)  
+**Mode:** ${scanResult.isBaselineScan ? "Baseline" : "Operational"}
 
-## Executive Summary
+## Executive Brief
 
 ${aiSummary || scanResult.executiveSummary.summary}
 
-${scanResult.isBaselineScan ? "Baseline note: this first run captured the existing project state. The next scans will show actual created, modified, deleted, and renamed deltas.\n" : ""}
+${scanResult.isBaselineScan ? "> Baseline scan captured the existing state. Subsequent runs will show real movement and operational deltas.\n" : ""}
 
-## High-Priority Actions
+## At a Glance
 
-${scanResult.highPriorityActions.map((item) => `- ${item}`).join("\n") || "- None"}
+| Signal | Value |
+| --- | ---: |
+| Active projects | ${scanResult.executiveSummary.activeProjects} |
+| Files changed | ${scanResult.executiveSummary.totalFilesChanged} |
+| Recent commits | ${scanResult.executiveSummary.recentCommits} |
+| Critical actions | ${intelligence.metrics.criticalActions} |
+| High-priority actions | ${intelligence.metrics.highActions} |
+| Projects needing attention | ${intelligence.metrics.projectsNeedingAttention} |
+| Pending follow-ups | ${scanResult.crossDomain.communications.pending.length} |
+| Waiting on others | ${scanResult.crossDomain.communications.waitingOn?.length || 0} |
+| Overdue commitments | ${scanResult.executiveSummary.overdueItems} |
 
-## Suggested Next Steps
+## Priority Queue
 
-${scanResult.recommendations.map((item) => `- ${item}`).join("\n") || "- No suggestions available"}
+${buildActionTable(intelligence.topActions)}
 
-## Cross-Domain Signals
+## Project Health
 
-- Today: ${scanResult.crossDomain.schedule.today.length} scheduled item(s), ${scanResult.crossDomain.schedule.conflicts.length} conflict warning(s)
-- University: ${scanResult.crossDomain.academics.dueSoon.length} due soon, ${scanResult.crossDomain.academics.overdue.length} overdue
-- Follow-ups: ${scanResult.crossDomain.communications.pending.length} pending message thread(s)
-- Responsibilities: ${scanResult.crossDomain.responsibilities.upcoming.length} upcoming, ${scanResult.crossDomain.responsibilities.overdue.length} overdue
-- Finance: ${scanResult.crossDomain.finance.upcomingBills.length} upcoming bill(s)
+${buildProjectHealthTable(intelligence.projectHealth)}
+
+## Today & Near-Term Commitments
+
+### Schedule
+${scanResult.crossDomain.schedule.today.map((event) => `- ${event.when} — **${event.title}**${event.location ? ` @ ${event.location}` : ""}`).join("\n") || "- No events recorded for today."}
+
+### Academic deadlines
+${scanResult.crossDomain.academics.dueSoon.slice(0, 6).map((item) => `- **${item.title}** (${item.course}) — due ${item.due_label}`).join("\n") || "- No academic deadlines due soon."}
+
+### Responsibility deadlines
+${scanResult.crossDomain.responsibilities.upcoming.slice(0, 6).map((item) => `- **${item.title}** [${item.area}] — due ${item.due_label}`).join("\n") || "- No responsibility deadlines due soon."}
+
+## Waiting On
+
+${buildWaitingOnList(scanResult.crossDomain.communications.waitingOn || [])}
+
+## Recommendations
+
+${scanResult.recommendations.map((item) => `- ${item}`).join("\n") || "- No recommendations generated."}
+
+## Project Detail
 
 ${projectSections}
 `;
@@ -118,280 +148,145 @@ function toAiProjectSummary(project) {
 }
 
 function buildMorningBriefing(scanResult) {
+  const intelligence = scanResult.operationalIntelligence;
   const todaySchedule = scanResult.crossDomain.schedule.today;
-  const deadlines = [
-    ...scanResult.crossDomain.academics.dueSoon.slice(0, 5).map((item) => `${item.title} (${item.course}) due ${item.due_label}`),
-    ...scanResult.crossDomain.responsibilities.upcoming.slice(0, 5).map((item) => `${item.title} [${item.area}] due ${item.due_label}`)
-  ].slice(0, 8);
+  const focusActions = intelligence.topActions.slice(0, 5);
+  const watchProjects = intelligence.projectHealth
+    .filter((project) => project.status === "attention" || project.status === "active")
+    .slice(0, 6);
 
-  return `# Morning Briefing
+  return `# Personal OS — Morning Briefing
 
-Generated: ${formatDateTime(scanResult.generatedAt)}
+**Generated:** ${formatDateTime(scanResult.generatedAt)}
 
-## Today's Schedule
+## Start Here
 
-${todaySchedule.map((event) => `- ${event.when} | ${event.title}${event.location ? ` @ ${event.location}` : ""}`).join("\n") || "- No events recorded for today"}
+${focusActions.length
+    ? focusActions.map((action, index) => `${index + 1}. **[${action.priority.toUpperCase()}] ${action.title}** — ${action.nextAction || action.detail || action.reason}`).join("\n")
+    : "No priority actions were generated."}
 
-## Upcoming Deadlines
+## Today's Timeline
 
-${deadlines.map((item) => `- ${item}`).join("\n") || "- No immediate deadlines recorded"}
+${todaySchedule.map((event) => `- ${event.when} — **${event.title}**${event.location ? ` @ ${event.location}` : ""}`).join("\n") || "- No events recorded for today."}
 
-## Priority Tasks
+## Deadlines
 
-${scanResult.highPriorityActions.map((item) => `- ${item}`).join("\n") || "- No high-priority actions generated"}
+${[
+    ...scanResult.crossDomain.academics.dueSoon.slice(0, 4).map((item) => `- Academic · **${item.title}** (${item.course}) · ${item.due_label}`),
+    ...scanResult.crossDomain.responsibilities.upcoming.slice(0, 4).map((item) => `- ${item.area} · **${item.title}** · ${item.due_label}`)
+  ].join("\n") || "- No immediate deadlines recorded."}
 
-## Follow-Up Reminders
+## Follow-ups
 
-${scanResult.crossDomain.communications.highPriority.map((conversation) => `- Reply to ${conversation.contact} on ${conversation.channel}: ${conversation.commitment || conversation.topic}`).join("\n") || "- No urgent follow-ups recorded"}
+${scanResult.crossDomain.communications.pending.slice(0, 8).map((conversation) =>
+    `- **${conversation.contact}** via ${conversation.channel}: ${conversation.commitment || conversation.topic || "Pending conversation"} (${conversation.ageHours}h)`
+  ).join("\n") || "- No pending follow-ups recorded."}
 
-## Recommended Focus Areas
+## Waiting On
 
-${scanResult.recommendations.map((item) => `- ${item}`).join("\n") || "- No recommendations generated"}
+${buildWaitingOnList(scanResult.crossDomain.communications.waitingOn || [])}
+
+## Project Watch
+
+${watchProjects.length
+    ? watchProjects.map((project) => `- **${project.name}** · ${project.status} · ${project.changedFiles} change(s) · ${project.uncommittedChanges} uncommitted${project.signals.length ? ` · ${project.signals.join("; ")}` : ""}`).join("\n")
+    : "- No projects currently require special attention."}
+
+## System Recommendations
+
+${scanResult.recommendations.slice(0, 6).map((item) => `- ${item}`).join("\n") || "- No recommendations generated."}
 `;
 }
 
 function buildEndOfDayReview(scanResult) {
-  const activeProjects = scanResult.projects.filter((project) => project.fileCounts.created + project.fileCounts.modified + project.fileCounts.deleted > 0);
-  const missedTasks = [
-    ...scanResult.crossDomain.academics.overdue.map((item) => `${item.title} (${item.course})`),
-    ...scanResult.crossDomain.responsibilities.overdue.map((item) => `${item.title} [${item.area}]`)
-  ].slice(0, 10);
+  const intelligence = scanResult.operationalIntelligence;
+  const activeProjects = intelligence.projectHealth.filter((project) => project.status === "active" || project.status === "attention");
+  const accomplishments = scanResult.projects
+    .flatMap((project) => project.inferredFeatures.concat(project.inferredFixes))
+    .slice(0, 10);
 
-  return `# End-of-Day Review
+  return `# Personal OS — End-of-Day Review
 
-Generated: ${formatDateTime(scanResult.generatedAt)}
+**Generated:** ${formatDateTime(scanResult.generatedAt)}
 
-## Work Completed
+## Day Snapshot
 
-${scanResult.isBaselineScan ? "- Baseline inventory captured; end-of-day change narratives will improve after the next scan window." : activeProjects.map((project) => `- ${project.progressReport}`).join("\n") || "- No project activity detected in the latest scan"}
+| Signal | Value |
+| --- | ---: |
+| Active projects in latest window | ${scanResult.executiveSummary.activeProjects} |
+| Files changed | ${scanResult.executiveSummary.totalFilesChanged} |
+| Recent commits | ${scanResult.executiveSummary.recentCommits} |
+| Open critical actions | ${intelligence.metrics.criticalActions} |
+| Open high-priority actions | ${intelligence.metrics.highActions} |
+| Pending follow-ups | ${scanResult.crossDomain.communications.pending.length} |
 
-## Progress Made
+## Project Movement
 
-${scanResult.projects
-    .map((project) =>
-      scanResult.isBaselineScan
-        ? `- ${project.name}: baseline captured with ${project.fileCounts.total} tracked file(s)`
-        : `- ${project.name}: ${project.fileCounts.created + project.fileCounts.modified + project.fileCounts.deleted} file change(s)`
-    )
-    .join("\n")}
+${scanResult.isBaselineScan
+    ? "- Baseline inventory captured; activity narratives will become more meaningful after subsequent scans."
+    : activeProjects.length
+      ? activeProjects.map((project) => `- **${project.name}** · ${project.status} · ${project.changedFiles} changed file(s) · ${project.recentCommits} recent commit(s) · ${project.uncommittedChanges} uncommitted`).join("\n")
+      : "- No project movement detected in the latest scan window."}
 
-## Missed Tasks
+## Accomplishment Signals
 
-${missedTasks.map((item) => `- ${item}`).join("\n") || "- No missed tasks recorded"}
+${accomplishments.length ? accomplishments.map((item) => `- ${item}`).join("\n") : "- No clear feature or fix signals were inferred."}
 
-## Key Accomplishments
+## Unresolved Priority Queue
 
-${scanResult.projects.flatMap((project) => project.inferredFeatures.concat(project.inferredFixes)).slice(0, 10).map((item) => `- ${item}`).join("\n") || "- No clear accomplishment signals were inferred"}
+${buildActionTable(intelligence.topActions.slice(0, 10))}
 
-## Priorities For Tomorrow
+## Waiting On
 
-${scanResult.highPriorityActions.concat(scanResult.recommendations).slice(0, 10).map((item) => `- ${item}`).join("\n") || "- No priorities generated"}
+${buildWaitingOnList(scanResult.crossDomain.communications.waitingOn || [])}
+
+## Carry Into Tomorrow
+
+${intelligence.topActions.slice(0, 5).map((action, index) => `${index + 1}. **${action.title}** — ${action.nextAction || action.detail || action.reason}`).join("\n") || "No priority carry-over generated."}
+
+## Recommendations
+
+${scanResult.recommendations.slice(0, 6).map((item) => `- ${item}`).join("\n") || "- No recommendations generated."}
 `;
 }
 
-function buildDashboard(scanResult) {
-  const cards = [
-    dashboardCard("Today", [
-      `${scanResult.crossDomain.schedule.today.length} schedule item(s)`,
-      `${scanResult.crossDomain.schedule.conflicts.length} conflict warning(s)`,
-      `${scanResult.crossDomain.academics.dueSoon.length} academic due-soon item(s)`
-    ]),
-    dashboardCard(
-      "Coding Projects",
-      scanResult.projects.slice(0, 8).map((project) =>
-        scanResult.isBaselineScan
-          ? `${project.name}: baseline captured (${project.fileCounts.total} tracked file(s))`
-          : `${project.name}: ${project.fileCounts.created + project.fileCounts.modified + project.fileCounts.deleted} file change(s)`
-      )
-    ),
-    dashboardCard("University", [
-      ...scanResult.crossDomain.academics.dueSoon.slice(0, 5).map((item) => `${item.title} due ${item.due_label}`),
-      ...scanResult.crossDomain.academics.overdue.slice(0, 3).map((item) => `Overdue: ${item.title}`)
-    ]),
-    dashboardCard("YBF / AIESEC", filterArea(scanResult, "YBF / AIESEC")),
-    dashboardCard("Church", filterArea(scanResult, "Church")),
-    dashboardCard("Freelance Work", filterArea(scanResult, "Freelance Work")),
-    dashboardCard("Finance", [
-      ...scanResult.crossDomain.finance.upcomingBills.slice(0, 4).map((bill) => `${bill.title} due ${bill.due_label}`),
-      ...scanResult.crossDomain.finance.goals.slice(0, 2).map((goal) => `${goal.title}: ${goal.current_amount}/${goal.target_amount}`)
-    ]),
-    dashboardCard("Messages & Follow-ups", scanResult.crossDomain.communications.pending.slice(0, 8).map((conversation) => `${conversation.contact}: ${conversation.commitment || conversation.topic}`)),
-    dashboardCard("Goals", scanResult.crossDomain.goals.map((goal) => `${goal.title} (${goal.status})`)),
-    dashboardCard("Recommendations", scanResult.recommendations)
-  ];
+function buildActionTable(actions) {
+  if (!actions.length) return "No priority actions generated.";
 
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Personal Operating System Dashboard</title>
-  <style>
-    :root {
-      --bg: #f4efe8;
-      --panel: rgba(255, 252, 248, 0.88);
-      --ink: #172121;
-      --muted: #56666b;
-      --accent: #d76b39;
-      --accent-2: #2d5f5d;
-      --line: rgba(23, 33, 33, 0.08);
-      --shadow: 0 18px 50px rgba(44, 38, 30, 0.12);
-    }
+  const rows = actions.map((action) =>
+    `| ${markdownCell(action.priority.toUpperCase())} | ${markdownCell(action.domain)} | ${markdownCell(action.title)} | ${markdownCell(action.nextAction || action.detail || action.reason || "Review")} |`
+  );
 
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      font-family: "Segoe UI", "Trebuchet MS", sans-serif;
-      color: var(--ink);
-      background:
-        radial-gradient(circle at top left, rgba(215, 107, 57, 0.18), transparent 26%),
-        radial-gradient(circle at top right, rgba(45, 95, 93, 0.2), transparent 22%),
-        linear-gradient(180deg, #fbf7f2 0%, var(--bg) 100%);
-      min-height: 100vh;
-    }
-
-    .shell {
-      width: min(1280px, calc(100% - 32px));
-      margin: 24px auto 48px;
-    }
-
-    .hero {
-      background: linear-gradient(135deg, rgba(255,255,255,0.82), rgba(255,248,241,0.9));
-      border: 1px solid var(--line);
-      border-radius: 28px;
-      padding: 28px;
-      box-shadow: var(--shadow);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .hero::after {
-      content: "";
-      position: absolute;
-      width: 280px;
-      height: 280px;
-      border-radius: 50%;
-      background: rgba(215, 107, 57, 0.12);
-      right: -80px;
-      top: -80px;
-      filter: blur(12px);
-    }
-
-    h1 {
-      margin: 0 0 8px;
-      font-size: clamp(2rem, 4vw, 3.75rem);
-      line-height: 0.95;
-      letter-spacing: -0.04em;
-    }
-
-    .subtitle {
-      max-width: 760px;
-      color: var(--muted);
-      font-size: 1rem;
-      line-height: 1.6;
-      margin: 0;
-    }
-
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 14px;
-      margin-top: 22px;
-    }
-
-    .stat {
-      padding: 16px;
-      background: rgba(255,255,255,0.7);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-    }
-
-    .stat strong {
-      display: block;
-      font-size: 1.75rem;
-      color: var(--accent-2);
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 18px;
-      margin-top: 22px;
-    }
-
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 22px;
-      padding: 20px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(12px);
-    }
-
-    .card h2 {
-      margin: 0 0 12px;
-      font-size: 1rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--accent);
-    }
-
-    ul {
-      margin: 0;
-      padding-left: 18px;
-      color: var(--ink);
-    }
-
-    li + li {
-      margin-top: 8px;
-    }
-
-    .footer {
-      margin-top: 18px;
-      color: var(--muted);
-      font-size: 0.95rem;
-    }
-  </style>
-</head>
-<body>
-  <main class="shell">
-    <section class="hero">
-      <h1>Personal Operating System</h1>
-      <p class="subtitle">${escapeHtml(scanResult.executiveSummary.summary)}</p>
-      <div class="stats">
-        <div class="stat"><strong>${scanResult.projects.length}</strong><span>Tracked projects</span></div>
-        <div class="stat"><strong>${scanResult.executiveSummary.totalFilesChanged}</strong><span>Files changed</span></div>
-        <div class="stat"><strong>${scanResult.highPriorityActions.length}</strong><span>Priority actions</span></div>
-        <div class="stat"><strong>${scanResult.crossDomain.communications.pending.length}</strong><span>Pending follow-ups</span></div>
-      </div>
-      <p class="footer">Last updated ${escapeHtml(formatDateTime(scanResult.generatedAt))}</p>
-    </section>
-    <section class="grid">
-      ${cards.join("\n")}
-    </section>
-  </main>
-</body>
-</html>`;
+  return [
+    "| Priority | Domain | Action | Next step |",
+    "| --- | --- | --- | --- |",
+    ...rows
+  ].join("\n");
 }
 
-function dashboardCard(title, items) {
-  const listItems = (items.length > 0 ? items : ["No major signals right now"])
-    .map((item) => `<li>${escapeHtml(item)}</li>`)
-    .join("");
-  return `<article class="card"><h2>${escapeHtml(title)}</h2><ul>${listItems}</ul></article>`;
+function buildProjectHealthTable(projects) {
+  if (!projects.length) return "No tracked projects.";
+
+  const rows = projects.map((project) =>
+    `| ${markdownCell(project.name)} | ${markdownCell(project.status)} | ${markdownCell(project.branch || "n/a")} | ${project.changedFiles} | ${project.recentCommits} | ${project.uncommittedChanges} | ${project.todoCount} |`
+  );
+
+  return [
+    "| Project | Status | Branch | Changes | Commits | Uncommitted | TODOs |",
+    "| --- | --- | --- | ---: | ---: | ---: | ---: |",
+    ...rows
+  ].join("\n");
 }
 
-function filterArea(scanResult, areaName) {
-  return scanResult.crossDomain.responsibilities.upcoming
-    .filter((item) => item.area === areaName)
-    .map((item) => `${item.title} due ${item.due_label}`);
+function buildWaitingOnList(items) {
+  if (!items.length) return "- Nothing is currently tracked as waiting on someone else.";
+
+  return items
+    .slice(0, 10)
+    .map((item) => `- **${item.contact || item.awaiting_response_from || "Pending response"}** — ${item.commitment || item.topic || "Awaiting response"} (${item.ageHours}h)`)
+    .join("\n");
 }
 
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+function markdownCell(value) {
+  return String(value ?? "").replaceAll("|", "\\\\|").replaceAll("\n", " ");
 }
