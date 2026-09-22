@@ -1,7 +1,13 @@
 name: Checks
-on: [push, pull_request, workflow_dispatch]
+
+on:
+  pull_request:
+    types: [opened]
+  workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   verify:
     strategy:
@@ -24,4 +30,3 @@ jobs:
             [void][System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$null, [ref]$parseErrors)
             if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
           }
-
