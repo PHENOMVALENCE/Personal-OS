@@ -1,0 +1,38 @@
+# Configuration reference
+
+The runtime reads `config/personal-os.config.json` relative to the installation directory. Run `npm run setup` to create it from `config/personal-os.config.example.json`. The local file is ignored by Git. JSON must have quoted keys and cannot contain comments or trailing commas. There is currently no schema validation or automatic merging with defaults.
+
+| Field | Meaning |
+| --- | --- |
+| `workspaceRoot` | Existing parent directory whose immediate child directories are projects. Prefer an absolute path; relative values depend on process working directory. |
+| `stateDir` | Latest scan snapshot directory; relative paths resolve from the installation root. |
+| `historyDir` | Timestamped complete scan snapshots; relative to installation root. |
+| `reportsDir` | Timestamped and latest Markdown reports; relative to installation root. |
+| `dashboardDir` | Static `index.html` and `latest.json`; relative to installation root. |
+| `maxTodoItemsPerProject` | Maximum changed-file TODO markers retained per project. Default example: 12. |
+| `scanWindowHours` | Report metadata describing the monitoring window. Does not set the scheduler interval or filter file changes by age. |
+| `excludeProjects` | Exact immediate child directory names to omit. |
+| `ignoredDirectories` | Case-insensitive directory names/path prefixes omitted during traversal. |
+| `ignoredExtensions` | File extensions omitted from inventory. Extension comparison uses lowercase names. |
+| `textExtensions` | Retained legacy configuration; TODO extraction currently uses its own hard-coded extension pattern. |
+| `schedule.morningBriefingTime` | Local Windows time used when registering the morning task, e.g. `07:00`. |
+| `schedule.endOfDayReviewTime` | Local Windows time used when registering the evening task, e.g. `21:00`. |
+| `automation.notificationsEnabled` | Display a notification from PowerShell wrappers. |
+| `automation.autoOpenDashboard` | Open the dashboard after a scheduled/wrapper run. |
+| `automation.autoOpenReports` | Open the corresponding latest Markdown report after a wrapper run. |
+| `ai.enabled` | Opt into the optional external summary request. Default false. |
+| `ai.model` | Model identifier sent to the external API; example value is not a guarantee of account availability. |
+
+## Timing and paths
+
+The scan task repeats every three hours as hard-coded in `scripts/register-tasks.ps1`; its first run is five minutes after registration and its repetition duration is 3,650 days. Changing `scanWindowHours` alone changes neither that schedule nor the comparison baseline. Morning/evening time changes take effect after re-registering tasks.
+
+Node reporting respects configured output directories. The PowerShell notification/opening helper currently expects default `reports/` and `dashboard/` locations. Retain those defaults when using automatic opening. Dates are displayed using the host's local timezone and an `en-GB` formatter; snapshots store ISO timestamps.
+
+## Optional AI
+
+The source checks both `ai.enabled` and `OPENAI_API_KEY`. It does not load `.env` files. For a manual session, set the environment variable outside source control; scheduled processes must inherit the variable in their own environment. Never paste credentials into configuration or issue reports.
+
+The request includes the executive summary, the first five project objects, and urgent actions. Project objects contain paths, inventories, Git metadata, TODO text, and inferred progress. Urgent actions can include personal names and obligations. Read [privacy boundaries](../SECURITY.md) before enabling this.
+
+Failures currently fall back silently to a local summary. The response reader expects a top-level `output_text` field; API response-shape compatibility is not verified by the offline tests. There is no request timeout, retry policy, or usage tracking yet. Local deterministic reports remain the supported default.
