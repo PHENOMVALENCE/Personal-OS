@@ -1,10 +1,10 @@
 # Configuration reference
 
-The runtime reads `config/personal-os.config.json` relative to the installation directory. Run `npm run setup` to create it from `config/personal-os.config.example.json`. The local file is ignored by Git. JSON must have quoted keys and cannot contain comments or trailing commas. There is currently no schema validation or automatic merging with defaults.
+The runtime reads `config/personal-os.config.json` relative to the installation directory. Run `npm run setup` to create it from `config/personal-os.config.example.json`. The local file is ignored by Git. JSON must have quoted keys and cannot contain comments or trailing commas. Startup validates required paths, array fields, scan limits, timing values, and the configured workspace before scanning.
 
 | Field | Meaning |
 | --- | --- |
-| `workspaceRoot` | Existing parent directory whose immediate child directories are projects. Prefer an absolute path; relative values depend on process working directory. |
+| `workspaceRoot` | Existing parent directory whose immediate child directories are projects. Relative paths resolve from the Personal OS installation root. |
 | `stateDir` | Latest scan snapshot directory; relative paths resolve from the installation root. |
 | `historyDir` | Timestamped complete scan snapshots; relative to installation root. |
 | `reportsDir` | Timestamped and latest Markdown reports; relative to installation root. |
@@ -14,7 +14,7 @@ The runtime reads `config/personal-os.config.json` relative to the installation 
 | `excludeProjects` | Exact immediate child directory names to omit. |
 | `ignoredDirectories` | Case-insensitive directory names/path prefixes omitted during traversal. |
 | `ignoredExtensions` | File extensions omitted from inventory. Extension comparison uses lowercase names. |
-| `textExtensions` | Retained legacy configuration; TODO extraction currently uses its own hard-coded extension pattern. |
+| `textExtensions` | Case-insensitive suffixes eligible for TODO/FIXME/HACK/XXX extraction from changed files, including multi-part suffixes such as `.blade.php`. |
 | `schedule.morningBriefingTime` | Local Windows time used when registering the morning task, e.g. `07:00`. |
 | `schedule.endOfDayReviewTime` | Local Windows time used when registering the evening task, e.g. `21:00`. |
 | `automation.notificationsEnabled` | Display a notification from PowerShell wrappers. |
@@ -22,6 +22,7 @@ The runtime reads `config/personal-os.config.json` relative to the installation 
 | `automation.autoOpenReports` | Open the corresponding latest Markdown report after a wrapper run. |
 | `ai.enabled` | Opt into the optional external summary request. Default false. |
 | `ai.model` | Model identifier sent to the external API; example value is not a guarantee of account availability. |
+| `ai.timeoutMs` | Maximum duration for an optional AI request. Must be 1,000–120,000 ms; the example uses 12,000 ms. |
 
 ## Timing and paths
 
