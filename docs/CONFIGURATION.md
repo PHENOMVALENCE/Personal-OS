@@ -9,12 +9,12 @@ The runtime reads `config/personal-os.config.json` relative to the installation 
 | `historyDir` | Timestamped complete scan snapshots; relative to installation root. |
 | `reportsDir` | Timestamped and latest Markdown reports; relative to installation root. |
 | `dashboardDir` | Static `index.html` and `latest.json`; relative to installation root. |
-| `maxTodoItemsPerProject` | Maximum changed-file TODO markers retained per project. Default example: 12. |
+| `maxTodoItemsPerProject` | Maximum TODO markers displayed per project; the full count is retained separately. Default example: 12. |
 | `scanWindowHours` | Report metadata describing the monitoring window. Does not set the scheduler interval or filter file changes by age. |
 | `excludeProjects` | Exact immediate child directory names to omit. |
 | `ignoredDirectories` | Case-insensitive directory names/path prefixes omitted during traversal. |
 | `ignoredExtensions` | File extensions omitted from inventory. Extension comparison uses lowercase names. |
-| `textExtensions` | Case-insensitive suffixes eligible for TODO/FIXME/HACK/XXX extraction from changed files, including multi-part suffixes such as `.blade.php`. |
+| `textExtensions` | Case-insensitive suffixes eligible for TODO/FIXME/HACK/XXX extraction from all eligible files, including multi-part suffixes such as `.blade.php`. |
 | `schedule.morningBriefingTime` | Local Windows time used when registering the morning task, e.g. `07:00`. |
 | `schedule.endOfDayReviewTime` | Local Windows time used when registering the evening task, e.g. `21:00`. |
 | `automation.notificationsEnabled` | Display a notification from PowerShell wrappers. |
@@ -37,3 +37,7 @@ The source checks both `ai.enabled` and `OPENAI_API_KEY`. It does not load `.env
 The request includes the executive summary, urgent actions, and reduced summaries for up to five projects. Reduced project summaries include names, file-count totals, changed-area labels, branch names, uncommitted-change counts, recent commit subjects, TODO counts, and limited inference text. Full file inventories and absolute project paths are not sent by this path. Urgent actions can still include personal names and obligations. Read [privacy boundaries](../SECURITY.md) before enabling this.
 
 Failures fall back to a local summary. Requests use the configured timeout and the response reader accepts both the convenience `output_text` field and nested output-text content. There is no retry policy or usage tracking yet. Local deterministic reports remain the supported default.
+
+## Folder progress
+
+See [folder and checklist progress](PROGRESS_TRACKING.md) for evidence rules, cache behavior and history limits. Optional field `progress.maxTextFileBytes` limits text inspection per file (default 524288 bytes; allowed 1024–10485760). Include `.md` in `textExtensions` to discover checklists.

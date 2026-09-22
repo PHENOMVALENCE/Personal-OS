@@ -45,3 +45,7 @@ This roadmap distinguishes newly delivered operational-intelligence work from ca
 ## Repository maturity
 
 CI currently checks syntax and a synthetic CLI workflow on Windows/Linux. It does not prove desktop notification behavior, live scheduling, API integration, or all domain edge cases. Licensing remains an owner decision. No release support policy is promised yet.
+
+## Folder progress delivered
+
+Persistent TODO evidence, Markdown checklist transitions, folder-level deltas, read-coverage warnings and the last 60 progress observations are implemented. See [the progress guide](PROGRESS_TRACKING.md). Full-day aggregation beyond that retained window, removed-project tracking and cross-process locking remain future work.

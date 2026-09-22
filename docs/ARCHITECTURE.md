@@ -41,11 +41,11 @@ flowchart TD
 
 Every immediate child directory under `workspaceRoot`, except explicit exclusions, becomes a project. Project names and traversed entries are ordered deterministically. Symbolic links are skipped, and directory exclusions support exact relative paths plus path prefixes. Traversal stores relative file paths with byte size and modification time; it does not hash contents. A same-size edit preserving modification time can be missed, and a timestamp-only touch can count as a modification. Unreadable nested directories/files are skipped; an unreadable workspace root fails the scan.
 
-Snapshots are matched by project name. First-run baselines suppress file-change counts. Later runs compare created, modified and deleted file paths. Potential renames pair new and deleted files by basename; this is not Git rename detection. Removed top-level projects are absent from the new result rather than represented as deleted projects.
+Snapshots are matched by absolute project path. New projects receive their own baseline. First-run baselines suppress file-change counts. Later runs compare created, modified and deleted file paths. Potential renames pair new and deleted files by basename; this is not Git rename detection. Removed top-level projects are absent from the new result rather than represented as deleted projects.
 
 For projects with a `.git` entry, synchronous read-only Git commands collect branch, short status, latest commit and commits since the previous snapshot timestamp. With no previous timestamp, up to five commits are included. Git errors produce empty fields. No pull, push, commit or fetch occurs during scans.
 
-Change categories follow filename/path rules with precedence. TODO extraction reads only created/modified files whose suffix matches configured `textExtensions` and stops at the per-project limit. Baseline scans do not inventory all existing TODOs. Feature and fix statements derive from commit keywords and file categories; they do not prove correctness, deployment, or completion.
+Change categories follow filename/path rules with precedence. TODO extraction retains evidence from all eligible text files, including unchanged files, and caches it by size and modification time. The display sample is capped by the per-project limit. Markdown checklists track explicit checked/unchecked transitions. See [progress tracking](PROGRESS_TRACKING.md). Feature and fix statements derive from commit keywords and file categories; they do not prove correctness, deployment, or completion.
 
 ## Domain summaries
 
@@ -62,6 +62,6 @@ Project health is also derived without AI. A project is marked `baseline`, `stea
 
 `latest-snapshot.json` and timestamped history are written before report generation. Reports and dashboard are then written as separate files, without a transaction or process lock. A later write failure can leave a new baseline with older reports; overlapping invocations can race. There is no retention policy. Back up inputs, configuration and state separately from the public repository.
 
-Morning/evening commands perform new scans and update the baseline. The end-of-day report summarizes the latest scan delta rather than aggregating a full day's history. Running commands consecutively can therefore produce a quiet end-of-day review even after earlier activity.
+Morning/evening commands perform new scans and update the baseline. The original end-of-day movement section summarizes the latest scan delta; its folder/checklist section also aggregates today's retained progress observations. Running commands consecutively can therefore produce a quiet end-of-day review even after earlier activity.
 
 The dashboard has no backend, authentication, live polling or interactive editing. It is regenerated from the latest scan, and generated content should be treated as private local output.

@@ -188,3 +188,7 @@ See the [roadmap](docs/ROADMAP.md) for planned reliability and integration work.
 ## License
 
 No open-source license has been granted yet. A public GitHub repository does not by itself grant general reuse rights.
+
+## Folder and checklist progress
+
+Track persistent TODOs, documented checklist completion and reopening, subfolder movement, and today's retained progress observations. See [the progress guide](docs/PROGRESS_TRACKING.md) for setup and precise counting rules. Checklist percentages describe documented tasks only.

@@ -40,3 +40,10 @@
 - Issue and pull-request templates for reproducible, privacy-conscious contributions.
 
 The import preserves existing application behavior. Known limitations are documented in the roadmap; publication does not imply those limitations have been fixed.
+
+## Folder progress update
+
+- Retain TODO evidence across quiet scans and track Markdown checklist transitions.
+- Show folder movement, explicit completion/reopening, outstanding tasks and retained daily observations in reports and project cards.
+- Cache text signals and bound text reads; expose incomplete coverage and suppress unreliable transitions.
+- Match project baselines by path and baseline newly discovered projects.
