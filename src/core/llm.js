@@ -3,6 +3,8 @@ export async function maybeGenerateAiSummary(config, payload) {
     return null;
   }
 
+  const timeoutMs = config.ai.timeoutMs || 12000;
+
   try {
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -10,15 +12,16 @@ export async function maybeGenerateAiSummary(config, payload) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
       },
+      signal: AbortSignal.timeout(timeoutMs),
       body: JSON.stringify({
-        model: config.ai.model || "gpt-5.5",
+        model: config.ai.model || "gpt-5.6",
         input: [
           {
             role: "system",
             content: [
               {
                 type: "input_text",
-                text: "You are a concise chief of staff. Summarize the monitoring payload into an executive update with priorities, risks, and next actions. Keep it under 180 words."
+                text: "You are a concise chief of staff. Summarize the monitoring payload into an executive update with priorities, risks, and next actions. Keep measured facts separate from inferences. Keep it under 180 words."
               }
             ]
           },
@@ -40,9 +43,24 @@ export async function maybeGenerateAiSummary(config, payload) {
     }
 
     const json = await response.json();
-    return json.output_text || null;
-  } catch (error) {
+    return extractOutputText(json);
+  } catch {
     return null;
   }
 }
 
+function extractOutputText(response) {
+  if (typeof response?.output_text === "string" && response.output_text.trim()) {
+    return response.output_text.trim();
+  }
+
+  for (const item of response?.output || []) {
+    for (const content of item?.content || []) {
+      if (content?.type === "output_text" && typeof content.text === "string" && content.text.trim()) {
+        return content.text.trim();
+      }
+    }
+  }
+
+  return null;
+}
