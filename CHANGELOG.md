@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Reliability and polish
+
+- Added actionable startup validation for configuration and workspace paths.
+- Made project ordering deterministic, fixed exact/path-prefix directory exclusions, skipped symbolic links, and wired TODO scanning to configured text extensions.
+- Added bounded optional AI requests with resilient response parsing and reduced project payloads that omit full inventories and absolute paths.
+- Expanded workflow tests for nested exclusions and configurable text scanning.
+- Reworked the public README to present architecture, privacy boundaries, commands, limitations, and project status more clearly.
+
+
 ## 0.1.0 — initial repository publication
 
 ### Existing application imported
