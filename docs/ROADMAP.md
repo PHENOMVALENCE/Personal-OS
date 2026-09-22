@@ -4,7 +4,7 @@ This is a direction for future work, not a claim that the features below exist.
 
 ## Reliability
 
-- Validate configuration and all input schemas with actionable errors.
+- Validate personal input schemas with actionable field-level errors.
 - Propagate CLI failures through PowerShell and suppress misleading success notifications.
 - Serialize scans across scheduled tasks and manual commands; write artifacts atomically.
 - Make report opening honor custom output directories.
@@ -14,7 +14,6 @@ This is a direction for future work, not a claim that the features below exist.
 ## Scanning quality
 
 - Support explicit ignored files and project Git ignore rules.
-- Fix path-prefix edge cases in directory exclusions.
 - Offer content hashes when size/mtime comparisons are insufficient.
 - Track deleted/renamed projects and improve rename detection.
 - Surface partial traversal and Git failures rather than quietly omitting evidence.
@@ -30,8 +29,8 @@ This is a direction for future work, not a claim that the features below exist.
 ## Optional AI
 
 - Verify raw API response parsing and account/model compatibility.
-- Add bounded timeouts, clear error reporting, and request cancellation.
-- Minimize/redact payloads before external processing.
+- Add explicit opt-in diagnostics for external request failures without leaking payload content.
+- Add configurable redaction rules for names, commit subjects, and obligation text before external processing.
 - Track usage and keep generated inferences visibly distinct from measured facts.
 
 ## Repository maturity
