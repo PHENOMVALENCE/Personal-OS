@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Operational intelligence and reporting
+
+- Added a normalized cross-domain action engine with critical/high/medium/low prioritization, reasons, and suggested next actions.
+- Added deterministic project-health snapshots driven by project movement, working-tree pressure, TODO markers, rename signals, and commit recency.
+- Added a Waiting On queue for communications that depend on another person or party.
+- Rebuilt the local dashboard as a responsive command center with action filtering, project-health cards, timeline, deadlines, and waiting-on visibility.
+- Restructured executive, morning, and end-of-day reports around decisions and next actions rather than raw scan output.
+- Added tests for action prioritization and command-center output.
+
 ### Reliability and polish
 
 - Added actionable startup validation for configuration and workspace paths.
