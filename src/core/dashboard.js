@@ -16,7 +16,7 @@ export function buildDashboard(scanResult) {
   const actions = intelligence.topActions || [];
   const projectHealth = intelligence.projectHealth || [];
 
-  return \`<!doctype html>
+  return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -105,7 +105,7 @@ export function buildDashboard(scanResult) {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: \${scanResult.isBaselineScan ? "var(--amber)" : "var(--green)"};
+      background: ${scanResult.isBaselineScan ? "var(--amber)" : "var(--green)"};
       box-shadow: 0 0 16px currentColor;
     }
 
@@ -508,19 +508,19 @@ export function buildDashboard(scanResult) {
         <div class="brand-mark">OS</div>
         <div>Personal OS <span style="color:var(--muted);font-weight:500">/ Command Center</span></div>
       </div>
-      <div class="status"><span class="dot"></span>\${scanResult.isBaselineScan ? "Baseline captured" : "Operational scan active"}</div>
+      <div class="status"><span class="dot"></span>${scanResult.isBaselineScan ? "Baseline captured" : "Operational scan active"}</div>
     </header>
 
     <section class="hero">
       <p class="eyebrow">Operational intelligence</p>
       <h1>What needs your attention now.</h1>
-      <p class="hero-copy">\${escapeHtml(scanResult.executiveSummary.summary)}</p>
+      <p class="hero-copy">${escapeHtml(scanResult.executiveSummary.summary)}</p>
 
       <div class="metrics">
-        \${metricCard(intelligence.metrics.criticalActions, "Critical actions")}
-        \${metricCard(intelligence.metrics.highActions, "High-priority actions")}
-        \${metricCard(intelligence.metrics.projectsNeedingAttention, "Projects needing attention")}
-        \${metricCard(scanResult.crossDomain.communications.pending.length, "Pending follow-ups")}
+        ${metricCard(intelligence.metrics.criticalActions, "Critical actions")}
+        ${metricCard(intelligence.metrics.highActions, "High-priority actions")}
+        ${metricCard(intelligence.metrics.projectsNeedingAttention, "Projects needing attention")}
+        ${metricCard(scanResult.crossDomain.communications.pending.length, "Pending follow-ups")}
       </div>
     </section>
 
@@ -541,7 +541,7 @@ export function buildDashboard(scanResult) {
           </div>
           <div class="panel-body">
             <div class="action-list">
-              \${actions.length ? actions.map(actionCard).join("") : '<div class="empty">No priority actions generated from the current state.</div>'}
+              ${actions.length ? actions.map(actionCard).join("") : '<div class="empty">No priority actions generated from the current state.</div>'}
             </div>
           </div>
         </section>
@@ -555,7 +555,7 @@ export function buildDashboard(scanResult) {
           </div>
           <div class="panel-body">
             <div class="project-grid">
-              \${projectHealth.length ? projectHealth.map(projectCard).join("") : '<div class="empty">No tracked projects found.</div>'}
+              ${projectHealth.length ? projectHealth.map(projectCard).join("") : '<div class="empty">No tracked projects found.</div>'}
             </div>
           </div>
         </section>
@@ -566,12 +566,12 @@ export function buildDashboard(scanResult) {
           <div class="panel-head">
             <div>
               <h2 id="today-title">Today</h2>
-              <p>\${today.length} scheduled item(s) · \${scanResult.crossDomain.schedule.conflicts.length} conflict warning(s)</p>
+              <p>${today.length} scheduled item(s) · ${scanResult.crossDomain.schedule.conflicts.length} conflict warning(s)</p>
             </div>
           </div>
           <div class="panel-body">
             <div class="timeline">
-              \${today.length ? today.map(eventCard).join("") : '<div class="empty">No events recorded for today.</div>'}
+              ${today.length ? today.map(eventCard).join("") : '<div class="empty">No events recorded for today.</div>'}
             </div>
           </div>
         </section>
@@ -584,10 +584,10 @@ export function buildDashboard(scanResult) {
             </div>
           </div>
           <div class="panel-body">
-            \${compactList(
+            ${compactList(
               waitingOn.slice(0, 8).map((item) => ({
                 title: item.contact || item.awaiting_response_from || "Pending response",
-                detail: \`\${item.commitment || item.topic || "Awaiting response"} · \${item.ageHours}h\`
+                detail: `${item.commitment || item.topic || "Awaiting response"} · ${item.ageHours}h`
               })),
               "No external responses are currently tracked."
             )}
@@ -602,7 +602,7 @@ export function buildDashboard(scanResult) {
             </div>
           </div>
           <div class="panel-body">
-            \${compactList(buildDeadlineItems(scanResult), "No near-term deadlines recorded.")}
+            ${compactList(buildDeadlineItems(scanResult), "No near-term deadlines recorded.")}
           </div>
         </section>
 
@@ -614,7 +614,7 @@ export function buildDashboard(scanResult) {
             </div>
           </div>
           <div class="panel-body">
-            \${compactList(
+            ${compactList(
               scanResult.recommendations.slice(0, 6).map((item) => ({ title: item, detail: "" })),
               "No recommendations generated."
             )}
@@ -625,7 +625,7 @@ export function buildDashboard(scanResult) {
 
     <footer class="footer">
       <span>Generated locally · Personal OS</span>
-      <span>Last updated \${escapeHtml(formatDateTime(scanResult.generatedAt))}</span>
+      <span>Last updated ${escapeHtml(formatDateTime(scanResult.generatedAt))}</span>
     </footer>
   </main>
 
@@ -642,78 +642,78 @@ export function buildDashboard(scanResult) {
     });
   </script>
 </body>
-</html>\`;
+</html>`;
 }
 
 function metricCard(value, label) {
-  return \`<div class="metric"><strong>\${escapeHtml(value)}</strong><span>\${escapeHtml(label)}</span></div>\`;
+  return `<div class="metric"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div>`;
 }
 
 function actionCard(action) {
-  return \`
-    <article class="action" data-priority="\${escapeHtml(action.priority)}">
+  return `
+    <article class="action" data-priority="${escapeHtml(action.priority)}">
       <div class="priority-bar" aria-hidden="true"></div>
       <div>
         <div class="action-top">
-          <span class="action-title">\${escapeHtml(action.title)}</span>
-          <span class="badge \${escapeHtml(action.priority)}">\${escapeHtml(action.priority)}</span>
-          <span class="badge">\${escapeHtml(action.domain)}</span>
+          <span class="action-title">${escapeHtml(action.title)}</span>
+          <span class="badge ${escapeHtml(action.priority)}">${escapeHtml(action.priority)}</span>
+          <span class="badge">${escapeHtml(action.domain)}</span>
         </div>
-        \${action.detail ? \`<div class="action-detail">\${escapeHtml(action.detail)}</div>\` : ""}
-        \${action.reason ? \`<div class="action-reason">\${escapeHtml(action.reason)}</div>\` : ""}
-        \${action.nextAction ? \`<div class="next"><strong>Next:</strong> \${escapeHtml(action.nextAction)}</div>\` : ""}
+        ${action.detail ? `<div class="action-detail">${escapeHtml(action.detail)}</div>` : ""}
+        ${action.reason ? `<div class="action-reason">${escapeHtml(action.reason)}</div>` : ""}
+        ${action.nextAction ? `<div class="next"><strong>Next:</strong> ${escapeHtml(action.nextAction)}</div>` : ""}
       </div>
-    </article>\`;
+    </article>`;
 }
 
 function eventCard(event) {
   const start = formatClock(event.starts_at);
   const end = formatClock(event.ends_at);
-  return \`
+  return `
     <div class="event">
-      <div class="event-time">\${escapeHtml(start)}<br>→ \${escapeHtml(end)}</div>
+      <div class="event-time">${escapeHtml(start)}<br>→ ${escapeHtml(end)}</div>
       <div class="event-card">
-        <strong>\${escapeHtml(event.title)}</strong>
-        \${event.location ? \`<span>\${escapeHtml(event.location)}</span>\` : ""}
+        <strong>${escapeHtml(event.title)}</strong>
+        ${event.location ? `<span>${escapeHtml(event.location)}</span>` : ""}
       </div>
-    </div>\`;
+    </div>`;
 }
 
 function projectCard(project) {
   const signals = project.signals.length
-    ? \`<ul class="signals">\${project.signals.slice(0, 4).map((signal) => \`<li>\${escapeHtml(signal)}</li>\`).join("")}</ul>\`
+    ? `<ul class="signals">${project.signals.slice(0, 4).map((signal) => `<li>${escapeHtml(signal)}</li>`).join("")}</ul>`
     : '<ul class="signals"><li>No major risk signals</li></ul>';
 
-  return \`
+  return `
     <article class="project">
       <div class="project-top">
-        <div class="project-name" title="\${escapeHtml(project.name)}">\${escapeHtml(project.name)}</div>
-        <span class="status-chip \${escapeHtml(project.status)}">\${escapeHtml(project.status)}</span>
+        <div class="project-name" title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</div>
+        <span class="status-chip ${escapeHtml(project.status)}">${escapeHtml(project.status)}</span>
       </div>
       <div class="project-meta">
-        <div><strong>\${escapeHtml(project.changedFiles)}</strong><span>changes</span></div>
-        <div><strong>\${escapeHtml(project.recentCommits)}</strong><span>commits</span></div>
-        <div><strong>\${escapeHtml(project.uncommittedChanges)}</strong><span>uncommitted</span></div>
+        <div><strong>${escapeHtml(project.changedFiles)}</strong><span>changes</span></div>
+        <div><strong>${escapeHtml(project.recentCommits)}</strong><span>commits</span></div>
+        <div><strong>${escapeHtml(project.uncommittedChanges)}</strong><span>uncommitted</span></div>
       </div>
-      \${signals}
-    </article>\`;
+      ${signals}
+    </article>`;
 }
 
 function compactList(items, emptyText) {
-  if (!items.length) return \`<div class="empty">\${escapeHtml(emptyText)}</div>\`;
-  return \`<ul class="compact-list">\${items
-    .map((item) => \`<li><strong>\${escapeHtml(item.title)}</strong>\${item.detail ? \`<span>\${escapeHtml(item.detail)}</span>\` : ""}</li>\`)
-    .join("")}</ul>\`;
+  if (!items.length) return `<div class="empty">${escapeHtml(emptyText)}</div>`;
+  return `<ul class="compact-list">${items
+    .map((item) => `<li><strong>${escapeHtml(item.title)}</strong>${item.detail ? `<span>${escapeHtml(item.detail)}</span>` : ""}</li>`)
+    .join("")}</ul>`;
 }
 
 function buildDeadlineItems(scanResult) {
   const academics = scanResult.crossDomain.academics.dueSoon.slice(0, 4).map((item) => ({
     title: item.title,
-    detail: \`\${item.course} · \${item.due_label}\`
+    detail: `${item.course} · ${item.due_label}`
   }));
   const responsibilities = scanResult.crossDomain.responsibilities.upcoming.slice(0, 4).map((item) => ({
     title: item.title,
-    detail: \`\${item.area} · \${item.due_label}\`
+    detail: `${item.area} · ${item.due_label}`
   }));
 
   return [...academics, ...responsibilities].slice(0, 7);
